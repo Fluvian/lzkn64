@@ -174,10 +174,10 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             } else if (forwardWindowMatchValue != 0x00 && forwardWindowMatchSize > COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_A;
             } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize <= COPY_SIZE) {
-				currentSubmode = MODE_RLE_WRITE_B;
-			} else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize > COPY_SIZE) {
-				currentSubmode = MODE_RLE_WRITE_C;
-			}
+                currentSubmode = MODE_RLE_WRITE_B;
+            } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize > COPY_SIZE) {
+                currentSubmode = MODE_RLE_WRITE_C;
+            }
         } else if (slidingWindowMatchSize >= 2) {
             currentMode = MODE_WINDOW_COPY;
         }
@@ -196,8 +196,8 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             writeBuffer[writePosition++] = MODE_RAW_COPY | rawCopySize & 0x1F;
 
             for (int32_t writtenBytes = 0; writtenBytes < rawCopySize; writtenBytes++) {
-				writeBuffer[writePosition++] = fileBuffer[bufferLastCopyPosition++]; 
-			}
+                writeBuffer[writePosition++] = fileBuffer[bufferLastCopyPosition++]; 
+            }
         }
 
         if (currentMode == MODE_WINDOW_COPY) {
@@ -208,17 +208,17 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             bufferLastCopyPosition = bufferPosition;
         } else if (currentMode == MODE_RLE_WRITE_A) {
             if (currentSubmode == MODE_RLE_WRITE_A) {
-				writeBuffer[writePosition++] = MODE_RLE_WRITE_A | (forwardWindowMatchSize - 2) & 0x1F;
-				writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
-			} else if (currentSubmode == MODE_RLE_WRITE_B) {
-				writeBuffer[writePosition++] = MODE_RLE_WRITE_B | (forwardWindowMatchSize - 2) & 0x1F;
-			} else if (currentSubmode == MODE_RLE_WRITE_C) {
-				writeBuffer[writePosition++] = MODE_RLE_WRITE_C;
-				writeBuffer[writePosition++] = (forwardWindowMatchSize - 2) & 0xFF;
-			}
+                writeBuffer[writePosition++] = MODE_RLE_WRITE_A | (forwardWindowMatchSize - 2) & 0x1F;
+                writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
+            } else if (currentSubmode == MODE_RLE_WRITE_B) {
+                writeBuffer[writePosition++] = MODE_RLE_WRITE_B | (forwardWindowMatchSize - 2) & 0x1F;
+            } else if (currentSubmode == MODE_RLE_WRITE_C) {
+                writeBuffer[writePosition++] = MODE_RLE_WRITE_C;
+                writeBuffer[writePosition++] = (forwardWindowMatchSize - 2) & 0xFF;
+            }
 
-			bufferPosition += forwardWindowMatchSize;
-			bufferLastCopyPosition = bufferPosition;
+            bufferPosition += forwardWindowMatchSize;
+            bufferLastCopyPosition = bufferPosition;
         } else {
             bufferPosition += 1;
         }
@@ -226,7 +226,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
 
     // Write the compressed size.
     writeBuffer[1] = 0x00;
-	writeBuffer[1] = writePosition >> 16 & 0xFF;
+    writeBuffer[1] = writePosition >> 16 & 0xFF;
     writeBuffer[2] = writePosition >>  8 & 0xFF;
     writeBuffer[3] = writePosition       & 0xFF;
 
