@@ -19,7 +19,7 @@ n: Length to copy.
 
 #0x00
 #%0000 0000 0000 0000
- %coon nnnn oooo oooo
+ %cnnn nnoo oooo oooo
 ```
 
 ### Raw Data Copy

@@ -5,3 +5,5 @@ lzkn64:
 
 clean:
 	rm lzkn64
+
+.PHONY: lzkn64 clean
