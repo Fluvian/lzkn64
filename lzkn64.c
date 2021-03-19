@@ -1,21 +1,15 @@
 /*************************************************************
 * LZKN64 Compression and Decompression Utility               *
-* Written by Fluvian, 2021                                   *
 *************************************************************/
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#define VERSION "Version 1.0\n"
-#define AUTHOR "Written by Fluvian, 2021\n"
-
 #define TYPE_COMPRESS 1
 #define TYPE_DECOMPRESS 2
 
 const char* usageText = "LZKN64 Compression and Decompression Utility\n"
-                        VERSION
-                        AUTHOR
                         "\n"
                         "lzkn64 [-c|-d] input_file output_file\n"
                         "   -c: Compress the input file.\n"
