@@ -40,11 +40,11 @@ n: Length to copy.
 
 This is the RLE write mode, it has 3 different submodes, it writes either a zero or a specified value for a specific length.
 
-RLE Submode 1: Write a value contained in the byte following the command for a length (**length + 2**) encoded in the command.
+**RLE Submode 1**: Write a value contained in the byte following the command for a length (**length + 2**) encoded in the command.
 
-RLE Submode 2: Write zero for a length (**length + 2**) encoded in the command.
+**RLE Submode 2**: Write zero for a length (**length + 2**) encoded in the command.
 
-RLE Submode 3: Write zero for a length (**length + 2**) encoded in the following command.
+**RLE Submode 3**: Write zero for a length (**length + 2**) encoded in the following command.
 
 ```
 Command size in bytes: 1 or 2.
