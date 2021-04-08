@@ -9,6 +9,17 @@
 #define TYPE_COMPRESS 1
 #define TYPE_DECOMPRESS 2
 
+#define MODE_NONE        0x7F
+#define MODE_WINDOW_COPY 0x00
+#define MODE_RAW_COPY    0x80
+#define MODE_RLE_WRITE_A 0xA0
+#define MODE_RLE_WRITE_B 0xE0
+#define MODE_RLE_WRITE_C 0xFF
+
+#define WINDOW_SIZE 0x3FF
+#define COPY_SIZE   0x21
+#define RLE_SIZE    0x101
+
 const char* usageText = "LZKN64 Compression and Decompression Utility\n"
                         "\n"
                         "lzkn64 [-c|-d] input_file output_file\n"
@@ -64,17 +75,6 @@ int parseArguments(int argc, char** argv) {
  * Compresses the data in the buffer specified in the arguments.
  */
 int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBufferPtr) {
-    #define MODE_WINDOW_COPY 0x00
-    #define MODE_RAW_COPY    0x80
-    #define MODE_RLE_WRITE_A 0xA0
-    #define MODE_RLE_WRITE_B 0xE0
-    #define MODE_RLE_WRITE_C 0xFF
-    #define MODE_NONE        0x7F
-
-    #define WINDOW_SIZE 0x3FF
-    #define COPY_SIZE   0x21
-    #define RLE_SIZE    0xFF
-
     // Position of the current read location in the buffer.
     int32_t bufferPosition = 0;
 
@@ -159,8 +159,11 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             }
         }
 
-        // Try to pick which mode works best with the current values.
-        if (forwardWindowMatchSize >= 2) {
+        /* Try to pick which mode works best with the current values.
+         * Make sure the matched bytes have a length of at least 3 bytes.
+         * Exception for RLE Mode B, which just uses a single byte.
+         */
+        if (forwardWindowMatchSize >= 3) {
             currentMode = MODE_RLE_WRITE_A;
 
             if (forwardWindowMatchValue != 0x00 && forwardWindowMatchSize <= COPY_SIZE) {
@@ -172,7 +175,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize > COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_C;
             }
-        } else if (slidingWindowMatchSize >= 2) {
+        } else if (slidingWindowMatchSize >= 3) {
             currentMode = MODE_WINDOW_COPY;
         }
 
@@ -195,7 +198,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
         }
 
         if (currentMode == MODE_WINDOW_COPY) {
-            writeBuffer[writePosition++] = MODE_WINDOW_COPY | ((slidingWindowMatchSize - 2) & 0x1F) << 2 | ((bufferPosition - slidingWindowMatchPosition) & 0x300);
+            writeBuffer[writePosition++] = MODE_WINDOW_COPY | ((slidingWindowMatchSize - 2) & 0x1F) << 2 | (((bufferPosition - slidingWindowMatchPosition) & 0x300) >> 8);
             writeBuffer[writePosition++] = (bufferPosition - slidingWindowMatchPosition) & 0xFF;
 
             bufferPosition += slidingWindowMatchSize;
@@ -234,12 +237,6 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
  * Decompresses the data in the buffer specified in the arguments.
  */
 int decompressBuffer(uint8_t* fileBuffer, uint8_t** writeBufferPtr) {
-    #define MODE_WINDOW_COPY 0x00
-    #define MODE_RAW_COPY    0x80
-    #define MODE_RLE_WRITE_A 0xA0
-    #define MODE_RLE_WRITE_B 0xE0
-    #define MODE_RLE_WRITE_C 0xFF
-
     // Position of the current read location in the buffer.
     uint32_t bufferPosition = 4;
 
