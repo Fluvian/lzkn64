@@ -12,7 +12,7 @@
 #define MODE_NONE        0x7F
 #define MODE_WINDOW_COPY 0x00
 #define MODE_RAW_COPY    0x80
-#define MODE_RLE_WRITE_A 0xA0
+#define MODE_RLE_WRITE_A 0xC0
 #define MODE_RLE_WRITE_B 0xE0
 #define MODE_RLE_WRITE_C 0xFF
 
@@ -159,11 +159,10 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             }
         }
 
-        /* Try to pick which mode works best with the current values.
-         * Make sure the matched bytes have a length of at least 3 bytes.
-         * Exception for RLE Mode B, which just uses a single byte.
-         */
-        if (forwardWindowMatchSize >= 3) {
+        // Try to pick which mode works best with the current values.
+        if (slidingWindowMatchSize >= 3) {
+            currentMode = MODE_WINDOW_COPY;
+        } else if (forwardWindowMatchSize >= 3) {
             currentMode = MODE_RLE_WRITE_A;
 
             if (forwardWindowMatchValue != 0x00 && forwardWindowMatchSize <= COPY_SIZE) {
@@ -175,8 +174,9 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize > COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_C;
             }
-        } else if (slidingWindowMatchSize >= 3) {
-            currentMode = MODE_WINDOW_COPY;
+        } else if (forwardWindowMatchSize >= 2 && forwardWindowMatchValue == 0x00) {
+            currentMode = MODE_RLE_WRITE_A;
+            currentSubmode = MODE_RLE_WRITE_B;
         }
 
         /*
