@@ -112,6 +112,9 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
         // How many bytes will have to be copied in the raw copy command.
         int32_t rawCopySize = bufferPosition - bufferLastCopyPosition;
 
+        // How many bytes we still have to copy in RLE matches with more than 0x21 bytes.
+        int32_t rleBytesLeft = 0;
+
         /*
          * Go backwards in the buffer, is there a matching value? 
          * If yes, search forward and check for more matching values in a loop. 
@@ -169,6 +172,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
                 currentSubmode = MODE_RLE_WRITE_A;
             } else if (forwardWindowMatchValue != 0x00 && forwardWindowMatchSize > COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_A;
+                rleBytesLeft = forwardWindowMatchSize;
             } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize <= COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_B;
             } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize > COPY_SIZE) {
@@ -205,8 +209,16 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             bufferLastCopyPosition = bufferPosition;
         } else if (currentMode == MODE_RLE_WRITE_A) {
             if (currentSubmode == MODE_RLE_WRITE_A) {
-                writeBuffer[writePosition++] = MODE_RLE_WRITE_A | (forwardWindowMatchSize - 2) & 0x1F;
-                writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
+                if (rleBytesLeft > 0) {
+                    while (rleBytesLeft > 0) {
+                        writeBuffer[writePosition++] = MODE_RLE_WRITE_A | ((rleBytesLeft <= COPY_SIZE ? rleBytesLeft : COPY_SIZE) - 2) & 0x1F;
+                        writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
+                        rleBytesLeft -= COPY_SIZE;
+                    }
+                } else {
+                    writeBuffer[writePosition++] = MODE_RLE_WRITE_A | (forwardWindowMatchSize - 2) & 0x1F;
+                    writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
+                }
             } else if (currentSubmode == MODE_RLE_WRITE_B) {
                 writeBuffer[writePosition++] = MODE_RLE_WRITE_B | (forwardWindowMatchSize - 2) & 0x1F;
             } else if (currentSubmode == MODE_RLE_WRITE_C) {
@@ -304,15 +316,21 @@ int main(int argc, char** argv) {
     // Load the input file into a buffer.
     FILE* inputFile = fopen(argv[2], "rb");
     size_t inputFileSize;
+    size_t readFileSize;
 
     fseek(inputFile, 0, SEEK_END);
     inputFileSize = ftell(inputFile);
     fseek(inputFile, 0, SEEK_SET);
 
     uint8_t* inputBuffer = malloc(inputFileSize);
-    fread(inputBuffer, 1, inputFileSize, inputFile);
+    readFileSize = fread(inputBuffer, 1, inputFileSize, inputFile);
 
     fclose(inputFile);
+
+    if (readFileSize != inputFileSize) {
+        fprintf(stderr, "Error: An error occured reading the input file.\n");
+        return EXIT_FAILURE;
+    }
 
     // Initialize the output buffer.
     FILE* outputFile = fopen(argv[3], "wb");
