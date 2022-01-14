@@ -4,69 +4,74 @@ LZKN64 is a compression format commonly used in Konami's Nintendo 64 titles. Thi
 
 ## Format Documentation
 
-This format combines a sliding window algorithm with an RLE algorithm. There are 3 "modes" available.
+This format combines a sliding window algorithm with an RLE algorithm. There are 3 modes available.
+
+All symbols below are explained here:
+* **Size**: Size of the command and all values in bits
+* **Range**: Range of byte values that actually determine the command
+* **c**: Command
+* **n**: Length to copy
+* **o**: Displacement in buffer
+* **v**: Value to write
+* **x**: Any possible binary digit
 
 ### Sliding Window Copy
 
-This is the sliding window copy mode, it copies already decompressed bytes from the decompressed buffer for a length (**length + 2**) and displacement encoded in the command, 
-the bit structure is as follows:
+This is the sliding window copy mode, it copies already decompressed bytes from the decompressed buffer by using a displacement value specified by the command and using that as an offset to go backwards into the buffer. At that point it go forwards and start to copy bytes for the specified length in the command.
 
 ```
-Command size in bytes: 2.
-c: Command identifier.
-o: Offset of the start of the sliding window.
-n: Length to copy.
+Size: 16 bits
+Range: 0x00 <---> 0x7F
 
-#0x00
-#%0000 0000 0000 0000
- %cnnn nnoo oooo oooo
+0000 00xx xxxx xxxx
+cnnn nnoo oooo oooo
 ```
 
 ### Raw Data Copy
 
-This is the raw data copy mode, it copies the following bytes in the compressed buffer for a length encoded in the command, the bit structure is as follows:
+This is the raw data copy mode, it copies the bytes following the command in the compressed buffer for a specified length.
 
 ```
-Command size in bytes: 1.
-c: Command identifier.
-n: Length to copy.
+Size: 8 bits
+Range: 0x80 <---> 0x9F  
 
-#0x80
-#%1000 0000
- %cccn nnnn
+100x xxxx
+cccn nnnn
 ```
 
 ### RLE Write
 
-This is the RLE write mode, it has 3 different submodes, it writes either a zero or a specified value for a specific length.
+This is the RLE write mode, it has 3 different submodes, it writes either a zero value or a specified value for a specified length.
 
-**RLE Submode 1**: Write a value contained in the byte following the command for a length (**length + 2**) encoded in the command.
-
-**RLE Submode 2**: Write zero for a length (**length + 2**) encoded in the command.
-
-**RLE Submode 3**: Write zero for a length (**length + 2**) encoded in the following command.
+**RLE Submode 1**: 
+Write a value contained in the command for a length encoded in the command.
 
 ```
-Command size in bytes: 1 or 2.
-c: Command identifier.
-v: Value to write.
-n: Length to copy.
+Size: 16 bits
+Range: 0xA0 <---> 0xDF
 
-<--- RLE Submode 1 --->
+101x xxxx xxxx xxxx
+cccn nnnn vvvv vvvv
+```
 
-#0xA0
-#%1010 0000 0000 0000
- %cccn nnnn vvvv vvvv
+**RLE Submode 2**: 
+Write a zero value for a length encoded in the command.
 
-<--- RLE Submode 2 --->
+```
+Size: 8 bits
+Range: 0xE0 <---> 0xFE
 
-#0xE0
-#%1110 0000
- %cccn nnnn
+111x xxxx
+cccn nnnn
+```
 
-<--- RLE Submode 3 --->
+**RLE Submode 3**: 
+Write a zero value for a length encoded in the command.
 
-#0xFF
-#%1111 1111 0000 0000
- %cccc cccc nnnn nnnn
+```
+Size: 16 bits
+Range: 0xFF <--> 0xFF
+
+1111 1111 xxxx xxxx
+cccc cccc nnnn nnnn
 ```
