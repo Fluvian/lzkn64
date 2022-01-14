@@ -21,7 +21,7 @@ This is the sliding window copy mode, it copies already decompressed bytes from 
 
 ```
 Size: 16 bits
-Range: 0x00 <---> 0x7F
+Range: 0x00xx <---> 0x7Fxx
 
 0000 00xx xxxx xxxx
 cnnn nnoo oooo oooo
@@ -48,7 +48,7 @@ Write a value contained in the command for a length encoded in the command.
 
 ```
 Size: 16 bits
-Range: 0xA0 <---> 0xDF
+Range: 0xA0xx <---> 0xDFxx
 
 101x xxxx xxxx xxxx
 cccn nnnn vvvv vvvv
@@ -70,7 +70,7 @@ Write a zero value for a length encoded in the command.
 
 ```
 Size: 16 bits
-Range: 0xFF <--> 0xFF
+Range: 0xFFxx
 
 1111 1111 xxxx xxxx
 cccc cccc nnnn nnnn
