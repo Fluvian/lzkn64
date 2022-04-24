@@ -17,7 +17,7 @@ All symbols below are explained here:
 
 ### Sliding Window Copy
 
-This is the sliding window copy mode, it copies already decompressed bytes from the decompressed buffer by using a displacement value specified by the command and using that as an offset to go backwards into the buffer. At that point it go forwards and start to copy bytes for the specified length in the command.
+This is the sliding window copy mode, it copies already decompressed bytes from the decompressed buffer by using a displacement value specified by the command and using that as an offset to go backwards into the buffer. Afterwards it goes forwards and starts to append bytes for the specified length in the command to the front of the buffer.
 
 ```
 Size: 16 bits
