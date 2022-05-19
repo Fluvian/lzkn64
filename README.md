@@ -23,7 +23,7 @@ This is the sliding window copy mode, it copies already decompressed bytes from 
 Size: 16 bits
 Range: 0x00xx <---> 0x7Fxx
 
-0000 00xx xxxx xxxx
+0xxx xxxx xxxx xxxx
 cnnn nnoo oooo oooo
 ```
 
