@@ -211,7 +211,19 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             if (currentSubmode == MODE_RLE_WRITE_A) {
                 if (rleBytesLeft > 0) {
                     while (rleBytesLeft > 0) {
-                        writeBuffer[writePosition++] = MODE_RLE_WRITE_A | ((rleBytesLeft <= COPY_SIZE ? rleBytesLeft : COPY_SIZE) - 2) & 0x1F;
+                        // Dump raw bytes if we have less than two bytes left, not doing so would cause an underflow error.
+                        if (rleBytesLeft < 2) {
+                            writeBuffer[writePosition++] = MODE_RAW_COPY | rleBytesLeft & 0x1F;
+
+                            for (int32_t writtenBytes = 0; writtenBytes < rleBytesLeft; writtenBytes++) {
+                                writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF; 
+                            }
+
+                            rleBytesLeft = 0;
+                            break;
+                        }
+
+                        writeBuffer[writePosition++] = MODE_RLE_WRITE_A | ((rleBytesLeft < COPY_SIZE ? rleBytesLeft : COPY_SIZE) - 2) & 0x1F;
                         writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
                         rleBytesLeft -= COPY_SIZE;
                     }
