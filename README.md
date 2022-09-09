@@ -66,7 +66,7 @@ cccn nnnn
 ```
 
 **RLE Submode 3**: 
-Write a zero value for a length encoded in the command.
+Write a value (which is contained in the next byte) for a length encoded in the command.
 
 ```
 Size: 16 bits
