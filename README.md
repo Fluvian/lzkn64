@@ -44,7 +44,7 @@ cccn nnnn
 This is the RLE write mode, it has 3 different submodes, it writes either a zero value or a specified value for a specified length.
 
 **RLE Submode 1**: 
-Write a value contained in the command for a length encoded in the command.
+Write a value which is encoded in the next byte for a length encoded in the command.
 
 ```
 Size: 16 bits
@@ -66,7 +66,7 @@ cccn nnnn
 ```
 
 **RLE Submode 3**: 
-Write a value (which is contained in the next byte) for a length encoded in the command.
+Write a zero value for a length encoded in the next byte.
 
 ```
 Size: 16 bits
