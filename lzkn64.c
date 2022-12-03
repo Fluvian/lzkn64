@@ -89,13 +89,13 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
 
     while (bufferPosition < bufferSize) {
         // Calculate maximum length we are able to copy without going out of bounds.
-        const int32_t slidingWindowMaximumLength = COPY_SIZE < (bufferSize - bufferPosition) ? COPY_SIZE : (bufferSize - bufferPosition);
+        const int32_t slidingWindowMaximumLength = COPY_SIZE < ((bufferSize - 1) - bufferPosition) ? COPY_SIZE : ((bufferSize - 1) - bufferPosition);
 
         // Calculate how far we are able to look back without going behind the start of the uncompressed buffer.
         const int32_t slidingWindowMaximumOffset = (bufferPosition - WINDOW_SIZE) > 0 ? (bufferPosition - WINDOW_SIZE) : 0;
 
         // Calculate maximum length the forwarding looking window is able to search.
-        const int32_t forwardWindowMaximumLength = RLE_SIZE < (bufferSize - bufferPosition) ? RLE_SIZE : (bufferSize - bufferPosition);
+        const int32_t forwardWindowMaximumLength = RLE_SIZE < ((bufferSize - 1) - bufferPosition) ? RLE_SIZE : ((bufferSize - 1) - bufferPosition);
 
         int32_t slidingWindowMatchPosition = -1;
         int32_t slidingWindowMatchSize = 0;
@@ -131,7 +131,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
                 }
             }
 
-            // Once we find a match or a match that is bigger than the match before it, we save it's position and length.
+            // Once we find a match or a match that is bigger than the match before it, we save its position and length.
             if (matchingSequenceSize > slidingWindowMatchSize) {
                 slidingWindowMatchPosition = searchPosition;
                 slidingWindowMatchSize = matchingSequenceSize;
@@ -145,7 +145,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
          */
         {
             const int32_t matchingSequenceValue = fileBuffer[bufferPosition];
-            int32_t matchingSequenceSize = 1;
+            int32_t matchingSequenceSize = 0;
 
             while (fileBuffer[bufferPosition + matchingSequenceSize] == matchingSequenceValue) {
                 matchingSequenceSize++;
@@ -156,7 +156,7 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             }
 
             // If we find a sequence of matching values, save them.
-            if (matchingSequenceSize > 1) {
+            if (matchingSequenceSize >= 1) {
                 forwardWindowMatchValue = matchingSequenceValue;
                 forwardWindowMatchSize = matchingSequenceSize;
             }
