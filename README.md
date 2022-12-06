@@ -1,6 +1,6 @@
 # LZKN64
 
-LZKN64 is a compression format commonly used in Konami's Nintendo 64 titles. This application allows you to compress uncompressed files to LZKN64 files, or decompress LZKN64 files.
+LZKN64 (also known as Nagano) is a compression format commonly used in Konami's Nintendo 64 titles. This application allows you to compress uncompressed files to LZKN64 files, or decompress LZKN64 files.
 
 ## Format Documentation
 
