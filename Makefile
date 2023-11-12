@@ -1,4 +1,4 @@
-# Makefile for LZKN64
+# Makefile for lzkn64
 
 lzkn64:
 	gcc -O3 -o lzkn64 lzkn64.c -I .

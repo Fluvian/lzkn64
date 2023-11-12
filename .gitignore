@@ -1,7 +1,1 @@
-# File Extensions
-*
-!*.gitignore
-!*.md
-!*.c
-!*.h
-!Makefile
+build
