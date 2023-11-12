@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define TYPE_COMPRESS 1
 #define TYPE_DECOMPRESS 2
@@ -16,17 +17,30 @@
 #define MODE_RLE_WRITE_B 0xE0
 #define MODE_RLE_WRITE_C 0xFF
 
-#define WINDOW_SIZE 0x3FF
+#define WINDOW_SIZE 0x3DF
 #define COPY_SIZE   0x21
 #define RLE_SIZE    0x101
 
 const char* usageText = "LZKN64 Compression and Decompression Utility\n"
                         "\n"
-                        "lzkn64 [-c|-d] input_file output_file\n"
+                        "lzkn64 [-c|-d] input output\n"
                         "   -c: Compress the input file.\n"
                         "   -d: Decompress the input file.\n";
 
 uint32_t currentType = 0;
+
+/*
+ * Checks if a specified signed integer value is in a specified signed array.
+ */
+bool isValueInArray(int32_t value, const int32_t* array, const int32_t arraySize) {
+    for (int32_t i = 0; i < arraySize; i++) {
+        if (value == array[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 /*
  * Prints the usage help of this program.
@@ -59,7 +73,7 @@ int parseArguments(int argc, char** argv) {
             currentType = TYPE_DECOMPRESS;
         } else {
             printUsage();
-            fprintf(stderr, "Error: The option parameter you specified is not correct.\n");
+            fprintf(stderr, "Error: The mode option you specified is not correct.\n");
             return EXIT_FAILURE;
         }
     } else {
@@ -88,14 +102,44 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
     int32_t bufferLastCopyPosition = 0;
 
     while (bufferPosition < bufferSize) {
+        int32_t slidingWindowMaximumLength = 0;
+
         // Calculate maximum length we are able to copy without going out of bounds.
-        const int32_t slidingWindowMaximumLength = COPY_SIZE < ((bufferSize - 1) - bufferPosition) ? COPY_SIZE : ((bufferSize - 1) - bufferPosition);
+        if (COPY_SIZE <= (bufferSize - bufferPosition)) {
+            slidingWindowMaximumLength = COPY_SIZE;
+        } else {
+            slidingWindowMaximumLength = bufferSize - bufferPosition;
+        }
+
+        int32_t slidingWindowMaximumOffset = 0;
 
         // Calculate how far we are able to look back without going behind the start of the uncompressed buffer.
-        const int32_t slidingWindowMaximumOffset = (bufferPosition - WINDOW_SIZE) > 0 ? (bufferPosition - WINDOW_SIZE) : 0;
+        if ((bufferPosition - WINDOW_SIZE) > 0) {
+            slidingWindowMaximumOffset = bufferPosition - WINDOW_SIZE;
+        } else {
+            slidingWindowMaximumOffset = 0;
+        }
+
+        int32_t forwardWindowMaximumLength = 0;
 
         // Calculate maximum length the forwarding looking window is able to search.
-        const int32_t forwardWindowMaximumLength = RLE_SIZE < ((bufferSize - 1) - bufferPosition) ? RLE_SIZE : ((bufferSize - 1) - bufferPosition);
+        if (RLE_SIZE <= (bufferSize - bufferPosition - 1)) {
+            forwardWindowMaximumLength = RLE_SIZE;
+        } else {
+            forwardWindowMaximumLength = bufferSize - bufferPosition;
+        }
+
+        if (forwardWindowMaximumLength > COPY_SIZE) {
+            for (int32_t i = (COPY_SIZE + 1); i < (forwardWindowMaximumLength + 1); i++) {
+                const int32_t positionArray[] = { 0x021, 0x421, 0x821, 0xC21 };
+                const int32_t position = (bufferPosition + i) & 0xFFF;
+
+                if (isValueInArray(position, positionArray, sizeof(positionArray) / sizeof(positionArray[0]))) {
+                    forwardWindowMaximumLength = i;
+                    break;
+                }
+            }
+        }
 
         int32_t slidingWindowMatchPosition = -1;
         int32_t slidingWindowMatchSize = 0;
@@ -147,6 +191,12 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             const int32_t matchingSequenceValue = fileBuffer[bufferPosition];
             int32_t matchingSequenceSize = 0;
 
+        	// If our matching sequence number is not 0x00, set the forward window maximum length to the copy size minus 1.
+            // This is the highest it can really be in that case.
+            if (matchingSequenceValue != 0x00 && forwardWindowMaximumLength > COPY_SIZE - 1) {
+                forwardWindowMaximumLength = COPY_SIZE - 1;
+            }
+
             while (fileBuffer[bufferPosition + matchingSequenceSize] == matchingSequenceValue) {
                 matchingSequenceSize++;
 
@@ -163,19 +213,16 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
         }
 
         // Try to pick which mode works best with the current values.
-        if (slidingWindowMatchSize >= 3) {
+        if (slidingWindowMatchSize >= 4 && slidingWindowMatchSize > forwardWindowMatchSize) {
             currentMode = MODE_WINDOW_COPY;
         } else if (forwardWindowMatchSize >= 3) {
             currentMode = MODE_RLE_WRITE_A;
 
-            if (forwardWindowMatchValue != 0x00 && forwardWindowMatchSize <= COPY_SIZE) {
+            if (forwardWindowMatchValue != 0x00) {
                 currentSubmode = MODE_RLE_WRITE_A;
-            } else if (forwardWindowMatchValue != 0x00 && forwardWindowMatchSize > COPY_SIZE) {
-                currentSubmode = MODE_RLE_WRITE_A;
-                rleBytesLeft = forwardWindowMatchSize;
-            } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize <= COPY_SIZE) {
+            } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize < COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_B;
-            } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize > COPY_SIZE) {
+            } else if (forwardWindowMatchValue == 0x00 && forwardWindowMatchSize >= COPY_SIZE) {
                 currentSubmode = MODE_RLE_WRITE_C;
             }
         } else if (forwardWindowMatchSize >= 2 && forwardWindowMatchValue == 0x00) {
@@ -194,10 +241,24 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
                 rawCopySize = bufferSize - bufferLastCopyPosition;
             }
 
-            writeBuffer[writePosition++] = MODE_RAW_COPY | rawCopySize & 0x1F;
+            while (rawCopySize > 0) {
+                if (rawCopySize > 0x1F) {
+                    writeBuffer[writePosition++] = MODE_RAW_COPY | 0x1F;
 
-            for (int32_t writtenBytes = 0; writtenBytes < rawCopySize; writtenBytes++) {
-                writeBuffer[writePosition++] = fileBuffer[bufferLastCopyPosition++]; 
+                    for (int32_t writtenBytes = 0; writtenBytes < 0x1F; writtenBytes++) {
+                        writeBuffer[writePosition++] = fileBuffer[bufferLastCopyPosition++]; 
+                    }
+
+                    rawCopySize -= 0x1F;
+                } else {
+                    writeBuffer[writePosition++] = MODE_RAW_COPY | rawCopySize & 0x1F;
+
+                    for (int32_t writtenBytes = 0; writtenBytes < rawCopySize; writtenBytes++) {
+                        writeBuffer[writePosition++] = fileBuffer[bufferLastCopyPosition++]; 
+                    }
+
+                    rawCopySize = 0;
+                }
             }
         }
 
@@ -209,28 +270,8 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
             bufferLastCopyPosition = bufferPosition;
         } else if (currentMode == MODE_RLE_WRITE_A) {
             if (currentSubmode == MODE_RLE_WRITE_A) {
-                if (rleBytesLeft > 0) {
-                    while (rleBytesLeft > 0) {
-                        // Dump raw bytes if we have less than two bytes left, not doing so would cause an underflow error.
-                        if (rleBytesLeft < 2) {
-                            writeBuffer[writePosition++] = MODE_RAW_COPY | rleBytesLeft & 0x1F;
-
-                            for (int32_t writtenBytes = 0; writtenBytes < rleBytesLeft; writtenBytes++) {
-                                writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF; 
-                            }
-
-                            rleBytesLeft = 0;
-                            break;
-                        }
-
-                        writeBuffer[writePosition++] = MODE_RLE_WRITE_A | ((rleBytesLeft < COPY_SIZE ? rleBytesLeft : COPY_SIZE) - 2) & 0x1F;
-                        writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
-                        rleBytesLeft -= COPY_SIZE;
-                    }
-                } else {
-                    writeBuffer[writePosition++] = MODE_RLE_WRITE_A | (forwardWindowMatchSize - 2) & 0x1F;
-                    writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
-                }
+                writeBuffer[writePosition++] = MODE_RLE_WRITE_A | (forwardWindowMatchSize - 2) & 0x1F;
+                writeBuffer[writePosition++] = forwardWindowMatchValue & 0xFF;
             } else if (currentSubmode == MODE_RLE_WRITE_B) {
                 writeBuffer[writePosition++] = MODE_RLE_WRITE_B | (forwardWindowMatchSize - 2) & 0x1F;
             } else if (currentSubmode == MODE_RLE_WRITE_C) {
@@ -250,6 +291,11 @@ int compressBuffer(uint8_t* fileBuffer, size_t bufferSize, uint8_t** writeBuffer
     writeBuffer[1] = writePosition >> 16 & 0xFF;
     writeBuffer[2] = writePosition >>  8 & 0xFF;
     writeBuffer[3] = writePosition       & 0xFF;
+
+    // If the write buffer is not aligned to 16-bit, add a 0x00 byte to the end.
+    if ((writePosition % 2) != 0) {
+        writeBuffer[writePosition++] = 0x00;
+    }
 
     *writeBufferPtr = writeBuffer;
 
@@ -314,6 +360,56 @@ int decompressBuffer(uint8_t* fileBuffer, uint8_t** writeBufferPtr) {
     return writePosition;
 }
 
+void compressFile(const char* inputFilePath, uint8_t** outputBuffer, size_t* outputSize) {
+    // Open the input file
+    FILE* inputFile = fopen(inputFilePath, "rb");
+    if (inputFile == NULL) {
+        perror("Failed to open input file");
+        return;
+    }
+
+    // Get the size of the input file
+    fseek(inputFile, 0, SEEK_END);
+    size_t inputFileSize = ftell(inputFile);
+    rewind(inputFile);
+
+    // Read the input file into a buffer
+    uint8_t* inputBuffer = (uint8_t*)malloc(inputFileSize);
+    fread(inputBuffer, 1, inputFileSize, inputFile);
+    fclose(inputFile);
+
+    // Compress the input buffer
+    *outputSize = compressBuffer(inputBuffer, inputFileSize, outputBuffer);
+
+    // Clean up
+    free(inputBuffer);
+}
+
+void decompressFile(const char* inputFilePath, uint8_t** outputBuffer, size_t* outputSize) {
+    // Open the input file
+    FILE* inputFile = fopen(inputFilePath, "rb");
+    if (inputFile == NULL) {
+        perror("Failed to open input file");
+        return;
+    }
+
+    // Get the size of the input file
+    fseek(inputFile, 0, SEEK_END);
+    size_t inputFileSize = ftell(inputFile);
+    rewind(inputFile);
+
+    // Read the input file into a buffer
+    uint8_t* inputBuffer = (uint8_t*)malloc(inputFileSize);
+    fread(inputBuffer, 1, inputFileSize, inputFile);
+    fclose(inputFile);
+
+    // Decompress the input buffer
+    *outputSize = decompressBuffer(inputBuffer, outputBuffer);
+
+    // Clean up
+    free(inputBuffer);
+}
+
 /*
  * The main function. argv should contain three arguments, 
  * the current mode, the input file and the output file. 
@@ -324,44 +420,21 @@ int main(int argc, char** argv) {
     if (argumentReturn != 0) {
         return argumentReturn;
     }
-    
-    // Load the input file into a buffer.
-    FILE* inputFile = fopen(argv[2], "rb");
-    size_t inputFileSize;
-    size_t readFileSize;
 
-    fseek(inputFile, 0, SEEK_END);
-    inputFileSize = ftell(inputFile);
-    fseek(inputFile, 0, SEEK_SET);
-
-    uint8_t* inputBuffer = malloc(inputFileSize);
-    readFileSize = fread(inputBuffer, 1, inputFileSize, inputFile);
-
-    fclose(inputFile);
-
-    if (readFileSize != inputFileSize) {
-        fprintf(stderr, "Error: An error occured reading the input file.\n");
-        return EXIT_FAILURE;
-    }
-
-    // Initialize the output buffer.
-    FILE* outputFile = fopen(argv[3], "wb");
-    size_t outputFileSize;
     uint8_t* outputBuffer = NULL;
-
-    switch (currentType) {
-        case TYPE_COMPRESS:
-            outputFileSize = compressBuffer(inputBuffer, inputFileSize, &outputBuffer);
-            break;
-
-        case TYPE_DECOMPRESS:
-            outputFileSize = decompressBuffer(inputBuffer, &outputBuffer);
-            break;
+    size_t outputSize = 0;
+    
+    if (currentType == TYPE_COMPRESS) {
+        compressFile(argv[2], &outputBuffer, &outputSize);
+    } else if (currentType == TYPE_DECOMPRESS) {
+        decompressFile(argv[2], &outputBuffer, &outputSize);
     }
 
-    // Write the output buffer to a file.
-    fwrite(outputBuffer, 1, outputFileSize, outputFile);
+    FILE* outputFile = fopen(argv[3], "wb");
+    fwrite(outputBuffer, 1, outputSize, outputFile);
     fclose(outputFile);
+
+    free(outputBuffer);
 
     return EXIT_SUCCESS;
 }
