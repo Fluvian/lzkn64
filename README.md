@@ -2,6 +2,8 @@
 
 LZKN64 (also known as Nagano) is a compression format commonly used in Konami's Nintendo 64 titles. This application allows you to compress uncompressed files to LZKN64 files, or decompress LZKN64 files.
 
+*As of 2023-12-11, the compression algorithm fully matches the one Konami used in their tools, meaning files which have been decompressed and recompressed from the games match the original in the ROM file. Huge thanks to **[LiquidCat64](https://github.com/LiquidCat64)** for this!*
+
 ## Format Documentation
 
 This format combines a sliding window algorithm with an RLE algorithm. There are 3 modes available.
