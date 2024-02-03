@@ -227,6 +227,8 @@ size_t lzkn64_compress_accurate(const u8 *input_buffer, u8 *output_buffer, size_
 
         size_t sliding_window_maximum_offset = 0;
 
+        //! First difference from the efficient algorithm.
+        // The sliding window size is 0x10 bytes smaller than the efficient algorithm.
         // Find the maximum offset of the sliding window copy, e.g. how far back can we go to copy bytes.
         if (input_offset >= SLIDING_WINDOW_SIZE_ACCURATE) {
             sliding_window_maximum_offset = SLIDING_WINDOW_SIZE_ACCURATE;
@@ -243,7 +245,7 @@ size_t lzkn64_compress_accurate(const u8 *input_buffer, u8 *output_buffer, size_
             rle_window_maximum_length = input_size - input_offset;
         }
         
-        //! First difference from the efficient algorithm.
+        //! Second difference from the efficient algorithm.
         if (rle_window_maximum_length > RLE_SHORT_MAXIMUM_LENGTH) {
             for (size_t i = (RLE_SHORT_MAXIMUM_LENGTH + 1); i <= rle_window_maximum_length; i++) {
                 size_t j = (input_offset + i) & 0xFFF;
@@ -285,7 +287,7 @@ size_t lzkn64_compress_accurate(const u8 *input_buffer, u8 *output_buffer, size_
             size_t match_value = input_buffer[input_offset];
             size_t match_length = 0;
 
-            //! Second difference from the efficient algorithm. 
+            //! Third difference from the efficient algorithm. 
             // For some reason, when emitting a COMMAND_RLE_WRITE_SHORT_ANY_VALUE, the maximum length is RLE_SHORT_MAXIMUM_LENGTH - 1 instead of RLE_SHORT_MAXIMUM_LENGTH.
             if (match_value != 0x00 && rle_window_maximum_length > (RLE_SHORT_MAXIMUM_LENGTH - 1)) {
                 // We are matching a non-zero value, so the maximum length we are able to match is the maximum copy length.
@@ -300,6 +302,7 @@ size_t lzkn64_compress_accurate(const u8 *input_buffer, u8 *output_buffer, size_
                 }
             }
 
+            //! Fourth difference from the efficient algorithm.
             if (match_length > 0) {
                 rle_match_value = match_value;
                 rle_match_length = match_length;
@@ -308,7 +311,7 @@ size_t lzkn64_compress_accurate(const u8 *input_buffer, u8 *output_buffer, size_
 
         u8 command = COMMAND_UNDEFINED;
 
-        //! Third difference from the efficient algorithm.
+        //! Fifth difference from the efficient algorithm.
         // Try to pick a command that works best with the values calculated above.
         if (sliding_window_match_length >= 4 && sliding_window_match_length > rle_match_length) {
             command = COMMAND_SLIDING_WINDOW_COPY; // Takes up 2 bytes.
