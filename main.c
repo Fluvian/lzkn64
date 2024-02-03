@@ -63,7 +63,7 @@ int main(int argc, const char *argv[]) {
     FILE *input_file = fopen(arguments.input_file, "rb");
     if (input_file == NULL) {
         printf("Error: Could not open input file.\n");
-        return 1;
+        return EXIT_FAILURE;
     }
 
     fseek(input_file, 0, SEEK_END);
