@@ -1,9 +1,17 @@
 # Makefile for lzkn64
 
-lzkn64:
-	gcc -O3 -o lzkn64 lzkn64.c -I .
+CC = gcc
+CFLAGS = -I. -O3
+DEPS = lzkn64_new.h main.h types.h
+OBJ = lzkn64_new.o main.o
+
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+lzkn64: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)
+
+.PHONY: clean
 
 clean:
-	rm lzkn64
-
-.PHONY: lzkn64 clean
+	rm -f *.o lzkn64
