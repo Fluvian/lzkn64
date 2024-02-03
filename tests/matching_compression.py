@@ -31,6 +31,7 @@ if __name__ == "__main__":
     # Create a temporary directory to store the compressed files.
     if os.path.exists(temp_dir):
         shutil.rmtree(temp_dir)
+    
     os.mkdir(temp_dir)
 
     # Compress the files in the uncompressed directory.
@@ -45,7 +46,7 @@ if __name__ == "__main__":
                 os.makedirs(output_dir)
 
             # Compress the file.
-            subprocess.call([lzkn64, "-c", os.path.join(root, file), output_file])
+            subprocess.call([lzkn64, "-c", os.path.join(root, file), output_file, "-p"])
 
     # Compare the compressed files to the files in the compressed directory.
     for root, dirs, files in os.walk(temp_dir):
