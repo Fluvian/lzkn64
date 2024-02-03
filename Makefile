@@ -2,8 +2,8 @@
 
 CC = gcc
 CFLAGS = -I. -O3
-DEPS = lzkn64_new.h main.h types.h
-OBJ = lzkn64_new.o main.o
+DEPS = lzkn64.h main.h types.h
+OBJ = lzkn64.o main.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
