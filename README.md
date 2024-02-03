@@ -50,7 +50,7 @@ Write a value which is encoded in the next byte for a length encoded in the comm
 
 ```
 Size: 16 bits
-Range: 0xA0xx <---> 0xDFxx
+Range: 0xC0xx <---> 0xDFxx
 
 101x xxxx xxxx xxxx
 cccn nnnn vvvv vvvv
